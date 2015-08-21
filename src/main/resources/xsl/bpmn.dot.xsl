@@ -7,9 +7,6 @@
 	<xsl:output encoding="UTF-8" indent="yes" method="text" />
 
 	<xsl:template match="/b:definitions/b:process">
-	
-
-  
 		digraph {
 		node [shape=box];
 		<xsl:apply-templates select="b:*"/>
@@ -25,17 +22,19 @@
 			\nFor Each ${<xsl:value-of select="b:multiInstanceLoopCharacteristics/@activiti:elementVariable"/>} in <xsl:value-of select="b:multiInstanceLoopCharacteristics/@activiti:collection"/>
 			</xsl:if>
 		</xsl:variable>
+		compound=true;
 		subgraph cluster_<xsl:value-of select="@id"/> {
+		style=filled;
+		color=lightgrey;
+
 		label="<xsl:value-of select="normalize-space($label)"/>";
 			<xsl:apply-templates select="b:*"/>
 		}
 	</xsl:template>
-<xsl:template match="b:documentation">
-</xsl:template>
-	
 
-	
-	
+	<xsl:template match="b:documentation">
+	</xsl:template>
+
 	<xsl:template match="b:sequenceFlow">
 		<xsl:variable name="sourceRef" select="@sourceRef"/>
 		<xsl:variable name="targetRef" select="@targetRef"/>
@@ -47,7 +46,7 @@
 						<xsl:otherwise>
 							<xsl:value-of select="$sourceRef"/>
 						</xsl:otherwise>
-					</xsl:choose>		
+					</xsl:choose>
 		</xsl:variable>
 		<xsl:variable name="to">
 				<xsl:choose>
@@ -57,16 +56,36 @@
 						<xsl:otherwise>
 							<xsl:value-of select="$targetRef"/>
 						</xsl:otherwise>
-					</xsl:choose>		
+					</xsl:choose>
 		</xsl:variable>
 		<xsl:value-of select="$from"/> -> <xsl:value-of select="$to"/> [label="<xsl:value-of select="@name"/>"];
-	
+
 	</xsl:template>
-	
+
+	<xsl:template match="b:boundaryEvent">
+		<xsl:variable name="label" select="concat(
+			b:timerEventDefinition/b:timeCycle,
+			b:timerEventDefinition/b:timeDuration
+			)" />
+
+		<xsl:value-of select="@id"/> [
+		label="<xsl:value-of select="$label"/>",
+			fillcolor="orange",
+			style=filled,
+			width=0.2,
+			fixedsize=true,
+			shape="doublecircle"
+		];
+
+		<xsl:value-of select="@attachedToRef"/> -> <xsl:value-of select="@id"/>[
+		style="dotted", ltail="cluster_<xsl:value-of select="@attachedToRef"/>"];
+
+	</xsl:template>
+
 	<xsl:template match="b:exclusiveGateway">
-		<xsl:value-of select="@id"/> [label="<xsl:value-of select="@name"/>",fillcolor="#6b90d4",style=filled,width=0.75,height=0.75,fixedsize=true,shape="diamond"];
+		<xsl:value-of select="@id"/> [label="X",fillcolor="#6b90d4",style=filled,width=0.75,height=0.75,fixedsize=true,shape="diamond"];
 	</xsl:template>
-	
+
 	<xsl:template match="b:startEvent">
 		<xsl:value-of select="@id"/> [shape=circle,style=filled,fillcolor=green,label="",width=0.2];
 	</xsl:template>
@@ -77,13 +96,15 @@
 		<xsl:choose>
 			<xsl:when test="@activiti:class = 'com.example.ResponseMessageTask'">
 				<xsl:variable name="msg" select="concat(b:extensionElements/activiti:field[@name='message']/@stringValue, b:extensionElements/activiti:field[@name='message']/@expression)"/>
-				<xsl:value-of select="@id"/> [shape=box,style=filled,fillcolor="#dd9e9e",label="Message to User\n'<xsl:value-of select="substring($msg,0,24)"/>...'",width=0.2];
+				<xsl:variable name="name" select="@name"/>
+				<!-- <xsl:value-of select="@name"/> -->
+				<xsl:value-of select="@id"/> [shape=box,style=filled,fillcolor="#dd9e9e",label="Message to User\n'<xsl:value-of select="substring($name,0,24)"/>...'",width=0.2];
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:value-of select="@id"/> [shape=box,style=filled,fillcolor="#ffda73",label="<xsl:value-of select="@name"/>\n{<xsl:value-of select="@id"/>}",width=0.2];
 			</xsl:otherwise>
 		</xsl:choose>
-		
+
 	</xsl:template>
 	<xsl:template match="b:userTask">
 		<xsl:variable name="label">
@@ -95,9 +116,15 @@
 			\n(<xsl:value-of select="@activiti:formKey"/>)
 			\n{<xsl:value-of select="@id"/>}
 		</xsl:variable>
-		<xsl:value-of select="@id"/> [shape=box,style=filled,fillcolor="#c3c3c3",label="<xsl:value-of select="normalize-space($label)"/>",width=0.2];
-	</xsl:template>
-	
+		<xsl:variable name="fillcolor">
+			<xsl:choose>
+			  <xsl:when test="b:extensionElements/activiti:formProperty/activiti:value/@id='signalCancel'">#c3c3ff</xsl:when>
+			  <xsl:otherwise>#c3c3c3</xsl:otherwise>
+		  </xsl:choose>
+		</xsl:variable>
+		<xsl:value-of select="@id"/> [shape=box,style=filled,fillcolor="<xsl:value-of select="$fillcolor"/>",label="<xsl:value-of select="normalize-space($label)"/>",width=0.2];
+	   </xsl:template>
+
 	<xsl:template match="b:callActivity">
 		<xsl:variable name="cid" select="@id"/>
 		<xsl:variable name="label">
@@ -108,9 +135,14 @@
 			</xsl:for-each>
 		</xsl:variable>
 		<xsl:value-of select="@id"/> [shape=box,style=filled,fillcolor="#ff9140",label="<xsl:value-of select="normalize-space($label)"/>",width=0.2];
-		
-		
 	</xsl:template>
-	
-	
+
+	<xsl:template match="b:scriptTask">
+		<xsl:variable name="label">
+			Script Task\n
+			<xsl:value-of select="@name"/>
+		</xsl:variable>
+		<xsl:value-of select="@id"/> [label="<xsl:value-of select="normalize-space($label)"/>",shape=doubleoctagon,style=filled];
+
+	</xsl:template>
 </xsl:stylesheet>
